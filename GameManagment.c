@@ -10,14 +10,10 @@ typedef struct {
 
 #define MAX_GAMES 5
 #define TOTAL_CAPACITY 1024
+#define DATA_FILE "games.txt"
 
-Game store[MAX_GAMES] = {
-    {"Elden Ring", 60, 0},
-    {"FC 26", 50, 0},
-    {"Cyberpunk 2077", 70, 0},
-    {"Minecraft", 2, 0},
-    {"GTA V", 100, 0}
-};
+Game store[MAX_GAMES];
+int gameCount = 0;
 
 void clearScreen() {
 #ifdef _WIN32
@@ -27,9 +23,38 @@ void clearScreen() {
 #endif
 }
 
+void saveToFile() {
+    FILE *f = fopen(DATA_FILE, "w");
+    if (!f) {
+        printf("Warning: Could not save data to file.\n");
+        return;
+    }
+    for (int i = 0; i < gameCount; i++) {
+        fprintf(f, "%s,%d,%d\n", store[i].name, store[i].sizeGB, store[i].isInstalled);
+    }
+    fclose(f);
+}
+
+void loadFromFile() {
+    FILE *f = fopen(DATA_FILE, "r");
+    if (!f) {
+        printf("Error: games.txt not found! Please add the file and restart.\n");
+        exit(1);
+    }
+    gameCount = 0;
+    while (gameCount < MAX_GAMES &&
+           fscanf(f, "%49[^,],%d,%d\n",
+                  store[gameCount].name,
+                  &store[gameCount].sizeGB,
+                  &store[gameCount].isInstalled) == 3) {
+        gameCount++;
+    }
+    fclose(f);
+}
+
 int getUsedSpace() {
     int used = 0;
-    for (int i = 0; i < MAX_GAMES; i++) {
+    for (int i = 0; i < gameCount; i++) {
         if (store[i].isInstalled) used += store[i].sizeGB;
     }
     return used;
@@ -76,9 +101,9 @@ void showStore() {
         printf("Sorted by: %s\n\n",
                sortMode == 1 ? "Name" : sortMode == 2 ? "Size (asc)" : sortMode == 3 ? "Size (desc)" : "Default");
 
-        getSortedIndices(indices, MAX_GAMES, sortMode);
+        getSortedIndices(indices, gameCount, sortMode);
 
-        for (int i = 0; i < MAX_GAMES; i++) {
+        for (int i = 0; i < gameCount; i++) {
             int idx = indices[i];
             printf("%d. %-20s | Size: %3d GB | Status: %s\n",
                    i + 1, store[idx].name, store[idx].sizeGB,
@@ -86,7 +111,7 @@ void showStore() {
         }
 
         printf("\nOptions:\n");
-        printf("  1-%d : Install game\n", MAX_GAMES);
+        printf("  1-%d : Install game\n", gameCount);
         printf("  S   : Change sort order\n");
         printf("  0   : Back to Main Menu\n");
         printf("Choice: ");
@@ -98,7 +123,7 @@ void showStore() {
             askSortMode(&sortMode);
         } else {
             choice = atoi(input);
-            if (choice > 0 && choice <= MAX_GAMES) {
+            if (choice > 0 && choice <= gameCount) {
                 int idx = indices[choice - 1];
                 if (store[idx].isInstalled) {
                     printf("Game is already installed!\n");
@@ -106,6 +131,7 @@ void showStore() {
                     printf("Not enough space on console!\n");
                 } else {
                     store[idx].isInstalled = 1;
+                    saveToFile();
                     printf("Installing %s...\nDone!\n", store[idx].name);
                 }
                 printf("Press Enter to continue...");
@@ -129,11 +155,11 @@ void showInstalledGames() {
         printf("Sorted by: %s\n\n",
                sortMode == 1 ? "Name" : sortMode == 2 ? "Size (asc)" : sortMode == 3 ? "Size (desc)" : "Default");
 
-        getSortedIndices(indices, MAX_GAMES, sortMode);
+        getSortedIndices(indices, gameCount, sortMode);
 
         int found = 0;
         int displayCount = 0;
-        for (int i = 0; i < MAX_GAMES; i++) {
+        for (int i = 0; i < gameCount; i++) {
             int idx = indices[i];
             if (store[idx].isInstalled) {
                 displayCount++;
@@ -145,7 +171,7 @@ void showInstalledGames() {
         if (!found) printf("No games installed yet.\n");
 
         printf("\nOptions:\n");
-        printf("  1-%d : Uninstall game\n", displayCount > 0 ? displayCount : MAX_GAMES);
+        printf("  1-%d : Uninstall game\n", displayCount > 0 ? displayCount : gameCount);
         printf("  S   : Change sort order\n");
         printf("  0   : Back to Main Menu\n");
         printf("Choice: ");
@@ -160,6 +186,7 @@ void showInstalledGames() {
             if (choice > 0 && choice <= displayCount) {
                 int idx = displayMap[choice];
                 store[idx].isInstalled = 0;
+                saveToFile();
                 printf("%s uninstalled successfully!\n", store[idx].name);
                 printf("Press Enter to continue...");
                 getchar(); getchar();
@@ -173,6 +200,8 @@ void showInstalledGames() {
 }
 
 int main() {
+    loadFromFile();
+
     int mainChoice;
     do {
         clearScreen();
