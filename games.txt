@@ -1,0 +1,5 @@
+Elden Ring,60,0
+FC 25,50,0
+Cyberpunk 2077,70,0
+Minecraft,2,0
+GTA V,100,0
